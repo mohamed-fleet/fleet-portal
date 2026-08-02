@@ -1,4 +1,4 @@
-import { Vehicle } from "../types";
+import { Vehicle, User, Driver } from "../types";
 import { randomUUID } from "crypto";
 
 export const vehicles: Vehicle[] = [
@@ -25,5 +25,26 @@ export const vehicles: Vehicle[] = [
     assetNumber: "AST-1002",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+  },
+];
+
+export const users: User[] = [
+  {
+    id: randomUUID(),
+    email: "admin@fleet.com",
+    password: "admin123",
+    name: "Admin",
+    role: "admin",
+  },
+];
+
+export const drivers: Driver[] = [
+  {
+    id: randomUUID(),
+    name: "أحمد محمد",
+    phone: "0501234567",
+    licenseNumber: "DL-1001",
+    licenseExpiry: "2027-01-01",
+    status: "active",
   },
 ];
