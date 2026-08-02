@@ -8,5 +8,12 @@
     "submitting": "Logging in...",
     "errorInvalid": "Invalid email or password",
     "demo": "Demo: admin@fleet.com / admin123"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "vehicles": "Vehicles",
+    "drivers": "Drivers",
+    "trips": "Trips",
+    "version": "v0.1 — MVP"
   }
 }
