@@ -23,6 +23,8 @@ export interface Vehicle {
   holdStatus?: string; // حالة التحفظ
   formIssueDate?: string; // تاريخ إصدار الاستمارة
   chassisType?: string; // نوع الهيكل
+  costCenter?: string; // مركز التكلفة
+  assetNumber?: string; // رقم الأصل
   assignedDriverId?: string;
 }
 
