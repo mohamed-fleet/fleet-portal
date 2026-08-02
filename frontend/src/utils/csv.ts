@@ -31,20 +31,38 @@ export async function parseSpreadsheetFile(file: File): Promise<Record<string, s
   });
 }
 
-// Maps common header variants (English/Arabic, different casing/spacing) to our expected field names
+// Maps the official vehicle-registration export's Arabic column headers
+// (and a few common English variants) to our internal field names.
 const HEADER_ALIASES: Record<string, string> = {
+  // Official export headers (رقم اللوحة, الماركة, ...)
+  "رقم اللوحة": "plateNumber",
+  "نوع التسجيل": "registrationType",
+  "الفرع": "branch",
+  "الماركة": "brand",
+  "الطراز": "model",
+  "سنة الصنع": "manufactureYear",
+  "الرقم التسلسلي": "serialNumber",
+  "رقم الهيكل": "chassisNumber",
+  "اللون الأساسي": "color",
+  "وضع المركبة": "status",
+  "تاريخ الملكية": "ownershipDate",
+  "تاريخ انتهاء رخصة السير": "licenseExpiryDate",
+  "تاريخ انتهاء الفحص": "inspectionExpiryDate",
+  "رقم هوية المستخدم الفعلي": "actualUserId",
+  "اسم المستخدم الفعلي": "actualUserName",
+  "حالة الفحص": "inspectionStatus",
+  "حالة التأمين": "insuranceStatus",
+  "حالة التحفظ": "holdStatus",
+  "تاريخ إصدار الاستمارة": "formIssueDate",
+  "نوع الهيكل": "chassisType",
+  // Common English/simple variants (for manually-built sheets)
   platenumber: "plateNumber",
   "plate number": "plateNumber",
   plate: "plateNumber",
-  "رقم اللوحة": "plateNumber",
   model: "model",
-  "الموديل": "model",
+  brand: "brand",
   status: "status",
-  "الحالة": "status",
-  lastmaintenancedate: "lastMaintenanceDate",
-  "last maintenance date": "lastMaintenanceDate",
-  nextmaintenancedate: "nextMaintenanceDate",
-  "next maintenance date": "nextMaintenanceDate",
+  color: "color",
 };
 
 function normalizeHeader(header: string): string {
@@ -52,7 +70,7 @@ function normalizeHeader(header: string): string {
   return HEADER_ALIASES[key] ?? header.trim();
 }
 
-export const VEHICLE_CSV_TEMPLATE = `plateNumber,model,status,lastMaintenanceDate,nextMaintenanceDate
-CAI 1111,Toyota Hiace 2023,active,2026-06-01,2026-09-01
-CAI 2222,Isuzu NPR 2020,maintenance,2026-05-15,2026-08-15
+export const VEHICLE_CSV_TEMPLATE = `رقم اللوحة,الماركة,الطراز,سنة الصنع,اللون الأساسي,وضع المركبة,تاريخ انتهاء رخصة السير
+أ ب ج 1111,تويوتا,هايس,2023,أبيض,صالحة,2026-09-01
+أ ب ج 2222,ايسوزو,NPR,2020,أبيض,صالحة,2026-08-15
 `;
