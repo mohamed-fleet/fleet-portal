@@ -47,8 +47,9 @@ export default function Vehicles() {
       }));
       const result = await addManyVehicles(items);
       setUploadResult({ createdCount: result.created.length, errors: result.errors });
-    } catch {
-      setUploadResult({ createdCount: 0, errors: [{ row: 0, error: "تعذّر قراءة الملف — تأكد إنه ملف Excel (.xlsx) أو CSV صحيح" }] });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      setUploadResult({ createdCount: 0, errors: [{ row: 0, error: `تعذّر قراءة الملف: ${detail}` }] });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
