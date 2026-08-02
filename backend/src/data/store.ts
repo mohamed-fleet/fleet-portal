@@ -1,4 +1,4 @@
-import { Vehicle, User, Driver } from "../types";
+import { Vehicle, User, Driver, Trip } from "../types";
 import { randomUUID } from "crypto";
 
 export const vehicles: Vehicle[] = [
@@ -48,3 +48,5 @@ export const drivers: Driver[] = [
     status: "active",
   },
 ];
+
+export const trips: Trip[] = [];
