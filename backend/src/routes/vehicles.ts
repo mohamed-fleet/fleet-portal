@@ -51,4 +51,35 @@ router.delete("/:id", (req, res) => {
   res.json(removed);
 });
 
+// POST /api/vehicles/bulk — accepts an array of vehicles (used by CSV upload)
+router.post("/bulk", (req, res) => {
+  const items = req.body;
+  if (!Array.isArray(items)) {
+    return res.status(400).json({ error: "Expected an array of vehicles" });
+  }
+
+  const created: typeof vehicles = [];
+  const errors: { row: number; error: string }[] = [];
+
+  items.forEach((item, index) => {
+    if (!item.plateNumber || !item.model) {
+      errors.push({ row: index + 1, error: "plateNumber and model are required" });
+      return;
+    }
+    const newVehicle = {
+      id: uuid(),
+      plateNumber: item.plateNumber,
+      model: item.model,
+      status: item.status ?? "active",
+      assignedDriverId: item.assignedDriverId || undefined,
+      lastMaintenanceDate: item.lastMaintenanceDate || new Date().toISOString().slice(0, 10),
+      nextMaintenanceDate: item.nextMaintenanceDate || new Date().toISOString().slice(0, 10),
+    };
+    vehicles.push(newVehicle);
+    created.push(newVehicle);
+  });
+
+  res.status(201).json({ created, errors });
+});
+
 export default router;
