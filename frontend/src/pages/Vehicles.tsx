@@ -198,14 +198,16 @@ export default function Vehicles() {
               <th className="px-5 py-3 font-medium whitespace-nowrap">اللون</th>
               <th className="px-5 py-3 font-medium whitespace-nowrap">الحالة</th>
               <th className="px-5 py-3 font-medium whitespace-nowrap">انتهاء رخصة السير</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">مركز التكلفة</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">رقم الأصل</th>
               <th className="px-5 py-3 font-medium"></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td className="px-5 py-4 text-steel" colSpan={8}>جارِ التحميل...</td></tr>
+              <tr><td className="px-5 py-4 text-steel" colSpan={10}>جارِ التحميل...</td></tr>
             ) : filteredVehicles.length === 0 ? (
-              <tr><td className="px-5 py-4 text-steel" colSpan={8}>لا توجد مركبات مطابقة.</td></tr>
+              <tr><td className="px-5 py-4 text-steel" colSpan={10}>لا توجد مركبات مطابقة.</td></tr>
             ) : (
               filteredVehicles.map((v) => (
                 <tr key={v.id} className="border-t border-black/5">
@@ -216,6 +218,8 @@ export default function Vehicles() {
                   <td className="px-5 py-3 whitespace-nowrap">{v.color || "—"}</td>
                   <td className="px-5 py-3 whitespace-nowrap"><StatusBadge status={v.status} /></td>
                   <td className="px-5 py-3 font-mono text-steel whitespace-nowrap">{v.licenseExpiryDate || "—"}</td>
+                  <td className="px-5 py-3 whitespace-nowrap">{v.costCenter || "—"}</td>
+                  <td className="px-5 py-3 font-mono whitespace-nowrap">{v.assetNumber || "—"}</td>
                   <td className="px-5 py-3 text-left whitespace-nowrap">
                     <button
                       onClick={() => deleteVehicle(v.id)}
