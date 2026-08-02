@@ -1,13 +1,29 @@
-export type VehicleStatus = "active" | "maintenance" | "inactive";
-
+// Field names mirror the columns in the official vehicle-registration export
+// (رقم اللوحة, الماركة, الطراز, ...). Everything except plateNumber/model is
+// optional so both full official exports and quick manual entries work.
 export interface Vehicle {
   id: string;
-  plateNumber: string;
-  model: string;
-  status: VehicleStatus;
+  plateNumber: string; // رقم اللوحة
+  model: string; // الطراز
+  brand?: string; // الماركة
+  registrationType?: string; // نوع التسجيل
+  branch?: string; // الفرع
+  manufactureYear?: string; // سنة الصنع
+  serialNumber?: string; // الرقم التسلسلي
+  chassisNumber?: string; // رقم الهيكل
+  color?: string; // اللون الأساسي
+  status?: string; // وضع المركبة
+  ownershipDate?: string; // تاريخ الملكية
+  licenseExpiryDate?: string; // تاريخ انتهاء رخصة السير
+  inspectionExpiryDate?: string; // تاريخ انتهاء الفحص
+  actualUserId?: string; // رقم هوية المستخدم الفعلي
+  actualUserName?: string; // اسم المستخدم الفعلي
+  inspectionStatus?: string; // حالة الفحص
+  insuranceStatus?: string; // حالة التأمين
+  holdStatus?: string; // حالة التحفظ
+  formIssueDate?: string; // تاريخ إصدار الاستمارة
+  chassisType?: string; // نوع الهيكل
   assignedDriverId?: string;
-  lastMaintenanceDate: string;
-  nextMaintenanceDate: string;
 }
 
 export interface Driver {
