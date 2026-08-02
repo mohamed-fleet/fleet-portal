@@ -31,7 +31,7 @@ export interface Driver {
   name: string;
   phone: string;
   licenseNumber: string;
-  licenseExpiry: string;
+  licenseExpiry: string; // ISO date
   status: "active" | "inactive";
 }
 
@@ -39,10 +39,20 @@ export interface Trip {
   id: string;
   vehicleId: string;
   driverId: string;
-  startTime: string;
-  endTime?: string;
+  startTime: string; // ISO datetime
+  endTime?: string; // ISO datetime
   startLocation: string;
   endLocation?: string;
   distanceKm?: number;
   fuelCost?: number;
+}
+
+export type UserRole = "admin" | "driver" | "maintenance";
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  password: string; // plaintext for demo only — hash in production
+  role: UserRole;
 }
