@@ -29,3 +29,15 @@ export interface Driver {
   licenseExpiry: string;
   status: string;
 }
+
+export interface Trip {
+  id: string;
+  vehicleId: string;
+  driverId: string;
+  startTime: string;
+  startLocation: string;
+  endTime?: string;
+  endLocation?: string;
+  status?: string;
+  [key: string]: any;
+}
