@@ -7,14 +7,14 @@ export default function Dashboard() {
 
   const counts = {
     total: vehicles.length,
-    active: vehicles.filter((v) => v.status === "active").length,
-    maintenance: vehicles.filter((v) => v.status === "maintenance").length,
-    inactive: vehicles.filter((v) => v.status === "inactive").length,
+    valid: vehicles.filter((v) => v.status === "صالحة").length,
+    notValid: vehicles.filter((v) => v.status && v.status !== "صالحة").length,
+    unknown: vehicles.filter((v) => !v.status).length,
   };
 
-  const upcomingMaintenance = vehicles
-    .filter((v) => v.nextMaintenanceDate)
-    .sort((a, b) => a.nextMaintenanceDate.localeCompare(b.nextMaintenanceDate))
+  const upcomingLicenseExpiry = vehicles
+    .filter((v) => v.licenseExpiryDate && v.licenseExpiryDate !== "-")
+    .sort((a, b) => (a.licenseExpiryDate ?? "").localeCompare(b.licenseExpiryDate ?? ""))
     .slice(0, 5);
 
   return (
@@ -24,32 +24,32 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-4 gap-4 mb-8">
         <StatCard label="إجمالي المركبات" value={counts.total} accent="ink" />
-        <StatCard label="نشطة" value={counts.active} accent="route" />
-        <StatCard label="تحت الصيانة" value={counts.maintenance} accent="signal" />
-        <StatCard label="متوقفة" value={counts.inactive} accent="alert" />
+        <StatCard label="صالحة" value={counts.valid} accent="route" />
+        <StatCard label="غير صالحة" value={counts.notValid} accent="alert" />
+        <StatCard label="بدون بيانات حالة" value={counts.unknown} accent="signal" />
       </div>
 
       <div className="bg-white rounded-lg border border-black/5 p-6">
-        <h2 className="font-semibold mb-4">أقرب مواعيد الصيانة</h2>
+        <h2 className="font-semibold mb-4">أقرب تواريخ انتهاء رخصة السير</h2>
         {loading ? (
           <p className="text-steel text-sm">جارِ التحميل...</p>
-        ) : upcomingMaintenance.length === 0 ? (
-          <p className="text-steel text-sm">لا توجد صيانة مجدولة حاليًا.</p>
+        ) : upcomingLicenseExpiry.length === 0 ? (
+          <p className="text-steel text-sm">لا توجد بيانات تواريخ متاحة حاليًا.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="text-right text-steel border-b border-black/5">
                 <th className="pb-2 font-medium">المركبة</th>
                 <th className="pb-2 font-medium">الحالة</th>
-                <th className="pb-2 font-medium">تاريخ الصيانة القادمة</th>
+                <th className="pb-2 font-medium">تاريخ انتهاء الرخصة</th>
               </tr>
             </thead>
             <tbody>
-              {upcomingMaintenance.map((v) => (
+              {upcomingLicenseExpiry.map((v) => (
                 <tr key={v.id} className="border-b border-black/5 last:border-0">
-                  <td className="py-3">{v.plateNumber} — {v.model}</td>
+                  <td className="py-3">{v.plateNumber} — {v.brand ? `${v.brand} ` : ""}{v.model}</td>
                   <td className="py-3"><StatusBadge status={v.status} /></td>
-                  <td className="py-3 font-mono text-steel">{v.nextMaintenanceDate}</td>
+                  <td className="py-3 font-mono text-steel">{v.licenseExpiryDate}</td>
                 </tr>
               ))}
             </tbody>
