@@ -16,20 +16,16 @@ router.get("/:id", (req, res) => {
   res.json(vehicle);
 });
 
-// POST /api/vehicles
+// POST /api/vehicles — accepts any of the official-export fields (plateNumber
+// and model are the only required ones); everything else is stored as-is.
 router.post("/", (req, res) => {
-  const { plateNumber, model, status, assignedDriverId, lastMaintenanceDate, nextMaintenanceDate } = req.body;
+  const { plateNumber, model } = req.body;
   if (!plateNumber || !model) {
-    return res.status(400).json({ error: "plateNumber and model are required" });
+    return res.status(400).json({ error: "رقم اللوحة والطراز مطلوبان" });
   }
   const newVehicle = {
+    ...req.body,
     id: uuid(),
-    plateNumber,
-    model,
-    status: status ?? "active",
-    assignedDriverId,
-    lastMaintenanceDate: lastMaintenanceDate ?? new Date().toISOString(),
-    nextMaintenanceDate: nextMaintenanceDate ?? new Date().toISOString(),
   };
   vehicles.push(newVehicle);
   res.status(201).json(newVehicle);
@@ -51,7 +47,7 @@ router.delete("/:id", (req, res) => {
   res.json(removed);
 });
 
-// POST /api/vehicles/bulk — accepts an array of vehicles (used by CSV upload)
+// POST /api/vehicles/bulk — accepts an array of vehicles (used by the Excel/CSV upload)
 router.post("/bulk", (req, res) => {
   const items = req.body;
   if (!Array.isArray(items)) {
@@ -63,17 +59,12 @@ router.post("/bulk", (req, res) => {
 
   items.forEach((item, index) => {
     if (!item.plateNumber || !item.model) {
-      errors.push({ row: index + 1, error: "plateNumber and model are required" });
+      errors.push({ row: index + 1, error: "رقم اللوحة والطراز مطلوبان" });
       return;
     }
     const newVehicle = {
+      ...item,
       id: uuid(),
-      plateNumber: item.plateNumber,
-      model: item.model,
-      status: item.status ?? "active",
-      assignedDriverId: item.assignedDriverId || undefined,
-      lastMaintenanceDate: item.lastMaintenanceDate || new Date().toISOString().slice(0, 10),
-      nextMaintenanceDate: item.nextMaintenanceDate || new Date().toISOString().slice(0, 10),
     };
     vehicles.push(newVehicle);
     created.push(newVehicle);
