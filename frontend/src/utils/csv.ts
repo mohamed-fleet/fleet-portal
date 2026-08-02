@@ -55,6 +55,8 @@ const HEADER_ALIASES: Record<string, string> = {
   "حالة التحفظ": "holdStatus",
   "تاريخ إصدار الاستمارة": "formIssueDate",
   "نوع الهيكل": "chassisType",
+  "مركز التكلفة": "costCenter",
+  "رقم الأصل": "assetNumber",
   // Common English/simple variants (for manually-built sheets)
   platenumber: "plateNumber",
   "plate number": "plateNumber",
