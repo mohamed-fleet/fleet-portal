@@ -1,8 +1,7 @@
 import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
 import { vehicles } from "../data/store";
-import { Vehicle, VehicleInput } from "../types/vehicle";
-
+import { Vehicle, VehicleInput } from "../types";
 const router = Router();
 
 // GET all vehicles
