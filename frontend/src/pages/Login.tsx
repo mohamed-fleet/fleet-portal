@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import api from "../api";
 
 export default function Login() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("admin@fleet.com");
   const [password, setPassword] = useState("admin123");
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function Login() {
       localStorage.setItem("user", JSON.stringify(res.data.user));
       navigate("/");
     } catch {
-      setError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+      setError(t("login.errorInvalid"));
     } finally {
       setLoading(false);
     }
@@ -28,10 +30,10 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-asphalt">
       <form onSubmit={handleSubmit} className="bg-white rounded-lg p-8 w-full max-w-sm">
-        <h1 className="text-xl font-display font-bold mb-1">بوابة إدارة الأسطول</h1>
-        <p className="text-steel text-sm mb-6">سجّل الدخول لمتابعة مركباتك</p>
+        <h1 className="text-xl font-display font-bold mb-1">{t("login.title")}</h1>
+        <p className="text-steel text-sm mb-6">{t("login.subtitle")}</p>
 
-        <label className="block text-xs text-steel mb-1" htmlFor="email">البريد الإلكتروني</label>
+        <label className="block text-xs text-steel mb-1" htmlFor="email">{t("login.email")}</label>
         <input
           id="email"
           type="email"
@@ -41,7 +43,7 @@ export default function Login() {
           required
         />
 
-        <label className="block text-xs text-steel mb-1" htmlFor="password">كلمة المرور</label>
+        <label className="block text-xs text-steel mb-1" htmlFor="password">{t("login.password")}</label>
         <input
           id="password"
           type="password"
@@ -58,10 +60,10 @@ export default function Login() {
           disabled={loading}
           className="w-full bg-ink text-fog rounded-md py-2.5 text-sm font-medium disabled:opacity-50"
         >
-          {loading ? "جارِ الدخول..." : "دخول"}
+          {loading ? t("login.submitting") : t("login.submit")}
         </button>
 
-        <p className="text-xs text-steel mt-4 font-mono">Demo: admin@fleet.com / admin123</p>
+        <p className="text-xs text-steel mt-4 font-mono">{t("login.demo")}</p>
       </form>
     </div>
   );
