@@ -1,4 +1,4 @@
-import { Vehicle } from "../types/vehicle";
+import { Vehicle } from "../types";
 import { randomUUID } from "crypto";
 
 export const vehicles: Vehicle[] = [
