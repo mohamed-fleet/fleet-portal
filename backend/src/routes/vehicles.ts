@@ -1,76 +1,48 @@
-import { Router } from "express";
-import { v4 as uuid } from "uuid";
-import { vehicles } from "../data/store";
+// Field names mirror the columns in the official vehicle-registration export
+// (رقم اللوحة, الماركة, الطراز, ...). Everything except plateNumber/model is
+// optional so both full official exports and quick manual entries work.
+export interface Vehicle {
+  id: string;
+  plateNumber: string; // رقم اللوحة
+  model: string; // الطراز
+  brand?: string; // الماركة
+  registrationType?: string; // نوع التسجيل
+  branch?: string; // الفرع
+  manufactureYear?: string; // سنة الصنع
+  serialNumber?: string; // الرقم التسلسلي
+  chassisNumber?: string; // رقم الهيكل
+  color?: string; // اللون الأساسي
+  status?: string; // وضع المركبة
+  ownershipDate?: string; // تاريخ الملكية
+  licenseExpiryDate?: string; // تاريخ انتهاء رخصة السير
+  inspectionExpiryDate?: string; // تاريخ انتهاء الفحص
+  actualUserId?: string; // رقم هوية المستخدم الفعلي
+  actualUserName?: string; // اسم المستخدم الفعلي
+  inspectionStatus?: string; // حالة الفحص
+  insuranceStatus?: string; // حالة التأمين
+  holdStatus?: string; // حالة التحفظ
+  formIssueDate?: string; // تاريخ إصدار الاستمارة
+  chassisType?: string; // نوع الهيكل
+  assignedDriverId?: string;
+}
 
-const router = Router();
+export interface Driver {
+  id: string;
+  name: string;
+  phone: string;
+  licenseNumber: string;
+  licenseExpiry: string;
+  status: "active" | "inactive";
+}
 
-// GET /api/vehicles
-router.get("/", (_req, res) => {
-  res.json(vehicles);
-});
-
-// GET /api/vehicles/:id
-router.get("/:id", (req, res) => {
-  const vehicle = vehicles.find((v) => v.id === req.params.id);
-  if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
-  res.json(vehicle);
-});
-
-// POST /api/vehicles — accepts any of the official-export fields (plateNumber
-// and model are the only required ones); everything else is stored as-is.
-router.post("/", (req, res) => {
-  const { plateNumber, model } = req.body;
-  if (!plateNumber || !model) {
-    return res.status(400).json({ error: "رقم اللوحة والطراز مطلوبان" });
-  }
-  const newVehicle = {
-    ...req.body,
-    id: uuid(),
-  };
-  vehicles.push(newVehicle);
-  res.status(201).json(newVehicle);
-});
-
-// PUT /api/vehicles/:id
-router.put("/:id", (req, res) => {
-  const index = vehicles.findIndex((v) => v.id === req.params.id);
-  if (index === -1) return res.status(404).json({ error: "Vehicle not found" });
-  vehicles[index] = { ...vehicles[index], ...req.body };
-  res.json(vehicles[index]);
-});
-
-// DELETE /api/vehicles/:id
-router.delete("/:id", (req, res) => {
-  const index = vehicles.findIndex((v) => v.id === req.params.id);
-  if (index === -1) return res.status(404).json({ error: "Vehicle not found" });
-  const [removed] = vehicles.splice(index, 1);
-  res.json(removed);
-});
-
-// POST /api/vehicles/bulk — accepts an array of vehicles (used by the Excel/CSV upload)
-router.post("/bulk", (req, res) => {
-  const items = req.body;
-  if (!Array.isArray(items)) {
-    return res.status(400).json({ error: "Expected an array of vehicles" });
-  }
-
-  const created: typeof vehicles = [];
-  const errors: { row: number; error: string }[] = [];
-
-  items.forEach((item, index) => {
-    if (!item.plateNumber || !item.model) {
-      errors.push({ row: index + 1, error: "رقم اللوحة والطراز مطلوبان" });
-      return;
-    }
-    const newVehicle = {
-      ...item,
-      id: uuid(),
-    };
-    vehicles.push(newVehicle);
-    created.push(newVehicle);
-  });
-
-  res.status(201).json({ created, errors });
-});
-
-export default router;
+export interface Trip {
+  id: string;
+  vehicleId: string;
+  driverId: string;
+  startTime: string;
+  endTime?: string;
+  startLocation: string;
+  endLocation?: string;
+  distanceKm?: number;
+  fuelCost?: number;
+}
