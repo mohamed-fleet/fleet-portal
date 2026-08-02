@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useVehicles } from "../hooks/useVehicles";
 import { VehicleStatus } from "../types";
-import { parseCsv, VEHICLE_CSV_TEMPLATE } from "../utils/csv";
+import { parseSpreadsheetFile, VEHICLE_CSV_TEMPLATE } from "../utils/csv";
 
 export default function Vehicles() {
   const { vehicles, loading, error, addVehicle, addManyVehicles, updateVehicle, deleteVehicle } = useVehicles();
@@ -37,8 +37,7 @@ export default function Vehicles() {
     setUploading(true);
     setUploadResult(null);
     try {
-      const text = await file.text();
-      const rows = parseCsv(text);
+      const rows = await parseSpreadsheetFile(file);
       const items = rows.map((row) => ({
         plateNumber: row.plateNumber,
         model: row.model,
@@ -49,7 +48,7 @@ export default function Vehicles() {
       const result = await addManyVehicles(items);
       setUploadResult({ createdCount: result.created.length, errors: result.errors });
     } catch {
-      setUploadResult({ createdCount: 0, errors: [{ row: 0, error: "تعذر قراءة الملف — تأكد إنه بصيغة CSV صحيحة" }] });
+      setUploadResult({ createdCount: 0, errors: [{ row: 0, error: "تعذّر قراءة الملف — تأكد إنه ملف Excel (.xlsx) أو CSV صحيح" }] });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -85,12 +84,12 @@ export default function Vehicles() {
             disabled={uploading}
             className="border border-black/10 text-ink px-4 py-2 rounded-md text-sm font-medium hover:bg-black/5 transition-colors disabled:opacity-50"
           >
-            {uploading ? "جارِ الرفع..." : "⬆ رفع ملف CSV"}
+            {uploading ? "جارِ الرفع..." : "⬆ رفع ملف Excel / CSV"}
           </button>
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv"
+            accept=".csv,.xlsx,.xls"
             onChange={handleFileChange}
             className="hidden"
           />
@@ -111,11 +110,16 @@ export default function Vehicles() {
           {uploadResult.errors.length > 0 && (
             <div className="text-alert mt-2">
               <p className="font-medium">تعذّر رفع {uploadResult.errors.length} صف:</p>
-              <ul className="list-disc mr-5 mt-1">
-                {uploadResult.errors.map((err, i) => (
+              <ul className="list-disc mr-5 mt-1 max-h-40 overflow-y-auto">
+                {uploadResult.errors.slice(0, 10).map((err, i) => (
                   <li key={i}>صف {err.row}: {err.error}</li>
                 ))}
               </ul>
+              {uploadResult.errors.length > 10 && (
+                <p className="text-steel text-xs mt-1">
+                  و{uploadResult.errors.length - 10} صف إضافي بنفس المشكلة — تأكد إن أول صف في الملف فيه أعمدة plateNumber و model.
+                </p>
+              )}
             </div>
           )}
           <button onClick={() => setUploadResult(null)} className="text-steel text-xs mt-2 hover:underline">
