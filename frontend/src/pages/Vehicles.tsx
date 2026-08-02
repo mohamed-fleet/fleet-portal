@@ -1,16 +1,28 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { useVehicles } from "../hooks/useVehicles";
-import { VehicleStatus } from "../types";
+import { Vehicle } from "../types";
 import { parseSpreadsheetFile, VEHICLE_CSV_TEMPLATE } from "../utils/csv";
+import StatusBadge from "../components/StatusBadge";
 
 export default function Vehicles() {
-  const { vehicles, loading, error, addVehicle, addManyVehicles, updateVehicle, deleteVehicle } = useVehicles();
+  const { vehicles, loading, error, addVehicle, addManyVehicles, deleteVehicle } = useVehicles();
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ plateNumber: "", model: "" });
+  const [form, setForm] = useState({ plateNumber: "", brand: "", model: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ createdCount: number; errors: { row: number; error: string }[] } | null>(null);
+
+  const filteredVehicles = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return vehicles;
+    return vehicles.filter((v) =>
+      [v.plateNumber, v.brand, v.model, v.status, v.color]
+        .filter(Boolean)
+        .some((field) => field!.toLowerCase().includes(q))
+    );
+  }, [vehicles, search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,12 +31,11 @@ export default function Vehicles() {
     try {
       await addVehicle({
         plateNumber: form.plateNumber,
+        brand: form.brand,
         model: form.model,
-        status: "active",
-        lastMaintenanceDate: new Date().toISOString().slice(0, 10),
-        nextMaintenanceDate: new Date().toISOString().slice(0, 10),
+        status: "صالحة",
       });
-      setForm({ plateNumber: "", model: "" });
+      setForm({ plateNumber: "", brand: "", model: "" });
       setShowForm(false);
     } finally {
       setSubmitting(false);
@@ -38,13 +49,7 @@ export default function Vehicles() {
     setUploadResult(null);
     try {
       const rows = await parseSpreadsheetFile(file);
-      const items = rows.map((row) => ({
-        plateNumber: row.plateNumber,
-        model: row.model,
-        status: (row.status as VehicleStatus) || "active",
-        lastMaintenanceDate: row.lastMaintenanceDate,
-        nextMaintenanceDate: row.nextMaintenanceDate,
-      }));
+      const items = rows.map((row) => ({ ...row })) as Omit<Vehicle, "id">[];
       const result = await addManyVehicles(items);
       setUploadResult({ createdCount: result.created.length, errors: result.errors });
     } catch (err) {
@@ -57,7 +62,7 @@ export default function Vehicles() {
   };
 
   const downloadTemplate = () => {
-    const blob = new Blob([VEHICLE_CSV_TEMPLATE], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + VEHICLE_CSV_TEMPLATE], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -71,7 +76,7 @@ export default function Vehicles() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold mb-1">المركبات</h1>
-          <p className="text-steel text-sm">إدارة مركبات الأسطول وحالتها</p>
+          <p className="text-steel text-sm">إدارة مركبات الأسطول وحالتها ({vehicles.length} مركبة)</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -118,7 +123,7 @@ export default function Vehicles() {
               </ul>
               {uploadResult.errors.length > 10 && (
                 <p className="text-steel text-xs mt-1">
-                  و{uploadResult.errors.length - 10} صف إضافي بنفس المشكلة — تأكد إن أول صف في الملف فيه أعمدة plateNumber و model.
+                  و{uploadResult.errors.length - 10} صف إضافي — تأكد إن أول صف في الملف فيه أعمدة "رقم اللوحة" و"الطراز".
                 </p>
               )}
             </div>
@@ -142,7 +147,16 @@ export default function Vehicles() {
             />
           </div>
           <div className="flex-1">
-            <label className="block text-xs text-steel mb-1" htmlFor="model">الموديل</label>
+            <label className="block text-xs text-steel mb-1" htmlFor="brand">الماركة</label>
+            <input
+              id="brand"
+              className="w-full border border-black/10 rounded-md px-3 py-2 text-sm"
+              value={form.brand}
+              onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs text-steel mb-1" htmlFor="model">الطراز</label>
             <input
               id="model"
               className="w-full border border-black/10 rounded-md px-3 py-2 text-sm"
@@ -163,41 +177,46 @@ export default function Vehicles() {
 
       {error && <p className="text-alert text-sm mb-4">{error}</p>}
 
-      <div className="bg-white rounded-lg border border-black/5 overflow-hidden">
+      <div className="mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="ابحث برقم اللوحة، الماركة، الطراز، أو الحالة..."
+          className="w-full max-w-md border border-black/10 rounded-md px-3 py-2 text-sm bg-white"
+        />
+      </div>
+
+      <div className="bg-white rounded-lg border border-black/5 overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-fog">
             <tr className="text-right text-steel">
-              <th className="px-5 py-3 font-medium">رقم اللوحة</th>
-              <th className="px-5 py-3 font-medium">الموديل</th>
-              <th className="px-5 py-3 font-medium">الحالة</th>
-              <th className="px-5 py-3 font-medium">الصيانة القادمة</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">رقم اللوحة</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">الماركة</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">الطراز</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">سنة الصنع</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">اللون</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">الحالة</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">انتهاء رخصة السير</th>
               <th className="px-5 py-3 font-medium"></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td className="px-5 py-4 text-steel" colSpan={5}>جارِ التحميل...</td></tr>
-            ) : vehicles.length === 0 ? (
-              <tr><td className="px-5 py-4 text-steel" colSpan={5}>لا توجد مركبات مسجلة بعد.</td></tr>
+              <tr><td className="px-5 py-4 text-steel" colSpan={8}>جارِ التحميل...</td></tr>
+            ) : filteredVehicles.length === 0 ? (
+              <tr><td className="px-5 py-4 text-steel" colSpan={8}>لا توجد مركبات مطابقة.</td></tr>
             ) : (
-              vehicles.map((v) => (
+              filteredVehicles.map((v) => (
                 <tr key={v.id} className="border-t border-black/5">
-                  <td className="px-5 py-3 font-mono">{v.plateNumber}</td>
-                  <td className="px-5 py-3">{v.model}</td>
-                  <td className="px-5 py-3">
-                    <select
-                      value={v.status}
-                      onChange={(e) => updateVehicle(v.id, { status: e.target.value as VehicleStatus })}
-                      className="border border-black/10 rounded-md text-xs px-2 py-1 bg-white"
-                      aria-label={`تغيير حالة ${v.plateNumber}`}
-                    >
-                      <option value="active">نشطة</option>
-                      <option value="maintenance">تحت الصيانة</option>
-                      <option value="inactive">متوقفة</option>
-                    </select>
-                  </td>
-                  <td className="px-5 py-3 font-mono text-steel">{v.nextMaintenanceDate}</td>
-                  <td className="px-5 py-3 text-left">
+                  <td className="px-5 py-3 font-mono whitespace-nowrap">{v.plateNumber}</td>
+                  <td className="px-5 py-3 whitespace-nowrap">{v.brand || "—"}</td>
+                  <td className="px-5 py-3 whitespace-nowrap">{v.model}</td>
+                  <td className="px-5 py-3 font-mono whitespace-nowrap">{v.manufactureYear || "—"}</td>
+                  <td className="px-5 py-3 whitespace-nowrap">{v.color || "—"}</td>
+                  <td className="px-5 py-3 whitespace-nowrap"><StatusBadge status={v.status} /></td>
+                  <td className="px-5 py-3 font-mono text-steel whitespace-nowrap">{v.licenseExpiryDate || "—"}</td>
+                  <td className="px-5 py-3 text-left whitespace-nowrap">
                     <button
                       onClick={() => deleteVehicle(v.id)}
                       className="text-alert text-xs font-medium hover:underline"
