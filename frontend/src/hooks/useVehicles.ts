@@ -29,6 +29,15 @@ export function useVehicles() {
     setVehicles((prev) => [...prev, res.data]);
   };
 
+  const addManyVehicles = async (items: Omit<Vehicle, "id">[]) => {
+    const res = await api.post<{ created: Vehicle[]; errors: { row: number; error: string }[] }>(
+      "/vehicles/bulk",
+      items
+    );
+    setVehicles((prev) => [...prev, ...res.data.created]);
+    return res.data;
+  };
+
   const updateVehicle = async (id: string, updates: Partial<Vehicle>) => {
     const res = await api.put<Vehicle>(`/vehicles/${id}`, updates);
     setVehicles((prev) => prev.map((v) => (v.id === id ? res.data : v)));
@@ -39,5 +48,5 @@ export function useVehicles() {
     setVehicles((prev) => prev.filter((v) => v.id !== id));
   };
 
-  return { vehicles, loading, error, refresh, addVehicle, updateVehicle, deleteVehicle };
+  return { vehicles, loading, error, refresh, addVehicle, addManyVehicles, updateVehicle, deleteVehicle };
 }
