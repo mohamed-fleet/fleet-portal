@@ -8,5 +8,12 @@
     "submitting": "جار الدخول...",
     "errorInvalid": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
     "demo": "تجربة: admin@fleet.com / admin123"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "vehicles": "المركبات",
+    "drivers": "السائقين",
+    "trips": "الرحلات",
+    "version": "v0.1 — MVP"
   }
 }
