@@ -1,12 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useVehicles } from "../hooks/useVehicles";
 import { VehicleStatus } from "../types";
+import { parseCsv, VEHICLE_CSV_TEMPLATE } from "../utils/csv";
 
 export default function Vehicles() {
-  const { vehicles, loading, error, addVehicle, updateVehicle, deleteVehicle } = useVehicles();
+  const { vehicles, loading, error, addVehicle, addManyVehicles, updateVehicle, deleteVehicle } = useVehicles();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ plateNumber: "", model: "" });
   const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{ createdCount: number; errors: { row: number; error: string }[] } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +31,41 @@ export default function Vehicles() {
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadResult(null);
+    try {
+      const text = await file.text();
+      const rows = parseCsv(text);
+      const items = rows.map((row) => ({
+        plateNumber: row.plateNumber,
+        model: row.model,
+        status: (row.status as VehicleStatus) || "active",
+        lastMaintenanceDate: row.lastMaintenanceDate,
+        nextMaintenanceDate: row.nextMaintenanceDate,
+      }));
+      const result = await addManyVehicles(items);
+      setUploadResult({ createdCount: result.created.length, errors: result.errors });
+    } catch {
+      setUploadResult({ createdCount: 0, errors: [{ row: 0, error: "تعذر قراءة الملف — تأكد إنه بصيغة CSV صحيحة" }] });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const downloadTemplate = () => {
+    const blob = new Blob([VEHICLE_CSV_TEMPLATE], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "vehicles-template.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -34,13 +73,56 @@ export default function Vehicles() {
           <h1 className="text-2xl font-bold mb-1">المركبات</h1>
           <p className="text-steel text-sm">إدارة مركبات الأسطول وحالتها</p>
         </div>
-        <button
-          onClick={() => setShowForm((s) => !s)}
-          className="bg-ink text-fog px-4 py-2 rounded-md text-sm font-medium hover:bg-ink/90 transition-colors"
-        >
-          {showForm ? "إلغاء" : "+ إضافة مركبة"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={downloadTemplate}
+            className="border border-black/10 text-ink px-4 py-2 rounded-md text-sm font-medium hover:bg-black/5 transition-colors"
+          >
+            تحميل قالب CSV
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="border border-black/10 text-ink px-4 py-2 rounded-md text-sm font-medium hover:bg-black/5 transition-colors disabled:opacity-50"
+          >
+            {uploading ? "جارِ الرفع..." : "⬆ رفع ملف CSV"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <button
+            onClick={() => setShowForm((s) => !s)}
+            className="bg-ink text-fog px-4 py-2 rounded-md text-sm font-medium hover:bg-ink/90 transition-colors"
+          >
+            {showForm ? "إلغاء" : "+ إضافة مركبة"}
+          </button>
+        </div>
       </div>
+
+      {uploadResult && (
+        <div className="bg-white border border-black/5 rounded-lg p-4 mb-6 text-sm">
+          <p className="text-route font-medium mb-1">
+            تم رفع {uploadResult.createdCount} مركبة بنجاح ✅
+          </p>
+          {uploadResult.errors.length > 0 && (
+            <div className="text-alert mt-2">
+              <p className="font-medium">تعذّر رفع {uploadResult.errors.length} صف:</p>
+              <ul className="list-disc mr-5 mt-1">
+                {uploadResult.errors.map((err, i) => (
+                  <li key={i}>صف {err.row}: {err.error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <button onClick={() => setUploadResult(null)} className="text-steel text-xs mt-2 hover:underline">
+            إغلاق
+          </button>
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white border border-black/5 rounded-lg p-5 mb-6 flex gap-3 items-end">
