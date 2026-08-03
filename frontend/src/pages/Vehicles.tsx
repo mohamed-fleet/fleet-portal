@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Vehicle } from "../types/vehicle";
-
+import { Vehicle } from "../types";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
 export default function Vehicles() {
