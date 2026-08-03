@@ -7,8 +7,8 @@ export default function Dashboard() {
 
   const counts = {
     total: vehicles.length,
-    valid: vehicles.filter((v) => v.status === "صالحة").length,
-    notValid: vehicles.filter((v) => v.status && v.status !== "صالحة").length,
+    valid: vehicles.filter((v) => v.status === "active").length,
+    notValid: vehicles.filter((v) => v.status && v.status !== "active").length,
     unknown: vehicles.filter((v) => !v.status).length,
   };
 
@@ -24,15 +24,15 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-4 gap-4 mb-8">
         <StatCard label="إجمالي المركبات" value={counts.total} accent="ink" />
-        <StatCard label="صالحة" value={counts.valid} accent="route" />
-        <StatCard label="غير صالحة" value={counts.notValid} accent="alert" />
+        <StatCard label="نشطة" value={counts.valid} accent="route" />
+        <StatCard label="غير نشطة" value={counts.notValid} accent="alert" />
         <StatCard label="بدون بيانات حالة" value={counts.unknown} accent="signal" />
       </div>
 
       <div className="bg-white rounded-lg border border-black/5 p-6">
         <h2 className="font-semibold mb-4">أقرب تواريخ انتهاء رخصة السير</h2>
         {loading ? (
-          <p className="text-steel text-sm">جارِ التحميل...</p>
+          <p className="text-steel text-sm">جار التحميل...</p>
         ) : upcomingLicenseExpiry.length === 0 ? (
           <p className="text-steel text-sm">لا توجد بيانات تواريخ متاحة حاليًا.</p>
         ) : (
