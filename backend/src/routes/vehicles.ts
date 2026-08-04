@@ -92,16 +92,23 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows: any[] = XLSX.utils.sheet_to_json(sheet);
 
-  console.log("DEBUG_KEYS", JSON.stringify(rows.length > 0 ? Object.keys(rows[0]) : []));
-  console.log("DEBUG_FIRST_ROW", JSON.stringify(rows.length > 0 ? rows[0] : {}));
-
   let imported = 0;
   let skipped = 0;
+  let debugged = false;
 
   for (const row of rows) {
     const normalizedRow: any = {};
     for (const key in row) {
       normalizedRow[key.trim()] = row[key];
+    }
+
+    if (!debugged) {
+      debugged = true;
+      const keyList = Object.keys(normalizedRow).map((k) => "[" + k + "](len=" + k.length + ")");
+      console.log("DEBUG_NORMALIZED_KEYS", JSON.stringify(keyList));
+      console.log("DEBUG_COST_CENTER_RAW", JSON.stringify(normalizedRow["مركز التكلفة"]));
+      console.log("DEBUG_ASSET_RAW", JSON.stringify(normalizedRow["رقم الاصل"]));
+      console.log("DEBUG_LOOKUP_KEY_LEN", "مركز التكلفة".length, "رقم الاصل".length);
     }
 
     const plateNumber = normalizedRow["رقم اللوحة"] || normalizedRow["plateNumber"];
