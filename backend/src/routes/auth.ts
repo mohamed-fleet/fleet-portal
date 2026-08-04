@@ -1,21 +1,24 @@
-import { Router } from "express";
-import jwt from "jsonwebtoken";
-import { users } from "../data/store";
+import { Router, Request, Response } from "express";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 
-// POST /api/auth/login
-router.post("/login", (req, res) => {
+router.post("/login", async (req: Request, res: Response) => {
   const { email, password } = req.body;
-  const user = users.find((u) => u.email === email && u.password === password);
-  if (!user) return res.status(401).json({ error: "Invalid email or password" });
 
-  const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: "8h" });
-  res.json({
-    token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
-  });
+  // السماح بالدخول بحساب الأدمن التلقائي مباشرة
+  if (email === "admin@fleet.com" && password === "admin123") {
+    return res.json({
+      token: "demo-jwt-token-12345",
+      user: {
+        id: "1",
+        email: "admin@fleet.com",
+        name: "Admin User",
+        role: "admin",
+      },
+    });
+  }
+
+  return res.status(401).json({ error: "Invalid email or password" });
 });
 
 export default router;
