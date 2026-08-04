@@ -104,15 +104,19 @@ export default function Vehicles() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {vehicles.map((v) => (
-              <tr key={v.id}>
-                <td className="px-4 py-2">{v.plateNumber || v.plate_number || "-"}</td>
+            {vehicles.map((v: any, index: number) => (
+              <tr key={v.id || index}>
+                <td className="px-4 py-2">{v.plateNumber || v.plate_number || v.plate || "-"}</td>
                 <td className="px-4 py-2">{v.brand || "-"}</td>
                 <td className="px-4 py-2">{v.model || "-"}</td>
                 <td className="px-4 py-2">{v.year || "-"}</td>
                 <td className="px-4 py-2">{v.status || "-"}</td>
-                <td className="px-4 py-2">{v.costCenter || v.cost_center || "-"}</td>
-                <td className="px-4 py-2">{v.assetNumber || v.asset_number || "-"}</td>
+                <td className="px-4 py-2">
+                  {v.costCenter || v.cost_center || v.costCenterId || v["مركز التكلفة"] || "-"}
+                </td>
+                <td className="px-4 py-2">
+                  {v.assetNumber || v.asset_number || v.assetNo || v["رقم الأصل"] || "-"}
+                </td>
               </tr>
             ))}
           </tbody>
