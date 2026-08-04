@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Vehicle } from "../types";
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
 export default function Vehicles() {
@@ -106,13 +107,13 @@ export default function Vehicles() {
           <tbody className="divide-y divide-gray-200">
             {vehicles.map((v) => (
               <tr key={v.id}>
-                <td className="px-4 py-2">{v.plateNumber}</td>
-                <td className="px-4 py-2">{v.brand}</td>
-                <td className="px-4 py-2">{v.model}</td>
-                <td className="px-4 py-2">{v.year}</td>
-                <td className="px-4 py-2">{v.status}</td>
-                <td className="px-4 py-2">{v.costCenter}</td>
-                <td className="px-4 py-2">{v.assetNumber}</td>
+                <td className="px-4 py-2">{v.plateNumber || "-"}</td>
+                <td className="px-4 py-2">{v.brand || "-"}</td>
+                <td className="px-4 py-2">{v.model || "-"}</td>
+                <td className="px-4 py-2">{v.year || "-"}</td>
+                <td className="px-4 py-2">{v.status || "-"}</td>
+                <td className="px-4 py-2">{v.costCenter || "-"}</td>
+                <td className="px-4 py-2">{v.assetNumber || "-"}</td>
               </tr>
             ))}
           </tbody>
