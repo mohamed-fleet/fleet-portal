@@ -1,77 +1,109 @@
 import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
-import { vehicles } from "../data/store";
-import { Vehicle, VehicleInput } from "../types";
+import multer from "multer";
+import * as XLSX from "xlsx";
+import { pool } from "../data/db";
+
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 // GET all vehicles
-router.get("/", (req: Request, res: Response) => {
-  res.json(vehicles);
+router.get("/", async (req: Request, res: Response) => {
+  const result = await pool.query("SELECT * FROM vehicles ORDER BY created_at DESC");
+  res.json(result.rows);
 });
 
 // GET single vehicle
-router.get("/:id", (req: Request, res: Response) => {
-  const vehicle = vehicles.find((v) => v.id === req.params.id);
-  if (!vehicle) {
+router.get("/:id", async (req: Request, res: Response) => {
+  const result = await pool.query("SELECT * FROM vehicles WHERE id = $1", [req.params.id]);
+  if (result.rows.length === 0) {
     return res.status(404).json({ error: "السيارة غير موجودة" });
   }
-  res.json(vehicle);
+  res.json(result.rows[0]);
 });
 
 // POST create vehicle
-router.post("/", (req: Request, res: Response) => {
-  const body = req.body as VehicleInput;
-
+router.post("/", async (req: Request, res: Response) => {
+  const body = req.body;
   if (!body.plateNumber || !body.model || !body.costCenter || !body.assetNumber) {
     return res.status(400).json({
       error: "رقم اللوحة والموديل ومركز التكلفة ورقم الأصل حقول مطلوبة",
     });
   }
-
-  const newVehicle: Vehicle = {
-    id: randomUUID(),
-    plateNumber: body.plateNumber,
-    model: body.model,
-    brand: body.brand,
-    year: body.year,
-    status: body.status || "active",
-    costCenter: body.costCenter,
-    assetNumber: body.assetNumber,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  vehicles.push(newVehicle);
-  res.status(201).json(newVehicle);
+  const id = randomUUID();
+  const result = await pool.query(
+    `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [id, body.plateNumber, body.model, body.brand, body.year, body.status || "active", body.costCenter, body.assetNumber]
+  );
+  res.status(201).json(result.rows[0]);
 });
 
 // PUT update vehicle
-router.put("/:id", (req: Request, res: Response) => {
-  const index = vehicles.findIndex((v) => v.id === req.params.id);
-  if (index === -1) {
+router.put("/:id", async (req: Request, res: Response) => {
+  const body = req.body;
+  const result = await pool.query(
+    `UPDATE vehicles SET
+      plate_number = COALESCE($1, plate_number),
+      model = COALESCE($2, model),
+      brand = COALESCE($3, brand),
+      year = COALESCE($4, year),
+      status = COALESCE($5, status),
+      cost_center = COALESCE($6, cost_center),
+      asset_number = COALESCE($7, asset_number),
+      updated_at = now()
+     WHERE id = $8 RETURNING *`,
+    [body.plateNumber, body.model, body.brand, body.year, body.status, body.costCenter, body.assetNumber, req.params.id]
+  );
+  if (result.rows.length === 0) {
     return res.status(404).json({ error: "السيارة غير موجودة" });
   }
-
-  const body = req.body as Partial<VehicleInput>;
-
-  vehicles[index] = {
-    ...vehicles[index],
-    ...body,
-    updatedAt: new Date().toISOString(),
-  };
-
-  res.json(vehicles[index]);
+  res.json(result.rows[0]);
 });
 
 // DELETE vehicle
-router.delete("/:id", (req: Request, res: Response) => {
-  const index = vehicles.findIndex((v) => v.id === req.params.id);
-  if (index === -1) {
+router.delete("/:id", async (req: Request, res: Response) => {
+  const result = await pool.query("DELETE FROM vehicles WHERE id = $1", [req.params.id]);
+  if (result.rowCount === 0) {
     return res.status(404).json({ error: "السيارة غير موجودة" });
   }
-
-  vehicles.splice(index, 1);
   res.status(204).send();
+});
+
+// POST import vehicles from Excel
+router.post("/import", upload.single("file"), async (req: Request, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "لم يتم رفع ملف" });
+  }
+
+  const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+
+  let imported = 0;
+  let skipped = 0;
+
+  for (const row of rows) {
+    const plateNumber = row["رقم اللوحة"] || row["plateNumber"] || row["Plate Number"];
+    if (!plateNumber) {
+      skipped++;
+      continue;
+    }
+    const model = row["الطراز"] || row["الموديل"] || row["model"] || "";
+    const brand = row["الماركة"] || row["brand"] || "";
+    const year = parseInt(row["سنة الصنع"] || row["السنة"] || row["year"]) || null;
+    const costCenter = row["مركز التكلفة"] || row["costCenter"] || "";
+    const assetNumber = row["رقم الأصل"] || row["assetNumber"] || "";
+
+    await pool.query(
+      `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [randomUUID(), String(plateNumber), model, brand, year, "active", costCenter, assetNumber]
+    );
+    imported++;
+  }
+
+  res.json({ imported, skipped, total: rows.length });
 });
 
 export default router;
