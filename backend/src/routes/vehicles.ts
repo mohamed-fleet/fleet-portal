@@ -1,98 +1,88 @@
 import { Router, Request, Response } from "express";
-import { randomUUID } from "crypto";
 import multer from "multer";
 import * as XLSX from "xlsx";
-import { pool } from "../data/db";
+import { pool } from "../db";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-const SELECT_FIELDS = `
-  id,
-  plate_number AS "plateNumber",
-  model,
-  brand,
-  year,
-  status,
-  cost_center AS "costCenter",
-  asset_number AS "assetNumber",
-  created_at AS "createdAt",
-  updated_at AS "updatedAt"
-`;
-
+// 1. جلب جميع السيارات
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(`SELECT ${SELECT_FIELDS} FROM vehicles ORDER BY created_at DESC`);
+    const result = await pool.query(`
+      SELECT 
+        id,
+        plate_number AS "plateNumber",
+        plate_number AS "plate_number",
+        brand,
+        model,
+        year,
+        status,
+        cost_center AS "costCenter",
+        cost_center AS "cost_center",
+        asset_number AS "assetNumber",
+        asset_number AS "asset_number"
+      FROM vehicles 
+      ORDER BY id DESC
+    `);
     res.json(result.rows);
   } catch (error) {
+    console.error("Fetch vehicles error:", error);
     res.status(500).json({ error: "حدث خطأ أثناء جلب البيانات" });
   }
 });
 
-router.delete("/", async (req: Request, res: Response) => {
-  try {
-    await pool.query("DELETE FROM vehicles");
-    res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ error: "حدث خطأ أثناء المسح" });
-  }
-});
-
+// 2. استيراد ملف Excel مع قراءة جميع مسميات الأعمدة العربية والإنجليزي
 router.post("/import", upload.single("file"), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: "لم يتم رفع ملف" });
+      return res.status(400).json({ error: "لم يتم اختيار ملف" });
     }
 
     const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const data: any[] = XLSX.utils.sheet_to_json(sheet);
 
-    if (rows.length <= 1) {
-      return res.status(400).json({ error: "الملف فارغ" });
-    }
+    let count = 0;
 
-    let imported = 0;
-    let skipped = 0;
+    for (const row of data) {
+      // قراءة البيانات باللغة العربية والإنجليزي لكل الاحتمالات
+      const plateNumber = String(row["رقم اللوحة"] || row["plateNumber"] || row["plate_number"] || row["رقم لوحة السيارة"] || "").trim();
+      const brand = String(row["الماركة"] || row["brand"] || row["ماركة السيارة"] || "").trim();
+      const model = String(row["الموديل"] || row["model"] || row["نوع السيارة"] || "").trim();
+      const year = parseInt(row["السنة"] || row["year"] || row["سنه الصنع"] || 0) || 2020;
+      const status = String(row["الحالة"] || row["status"] || "active").trim();
+      
+      // قراءة مركز التكلفة ورقم الأصل
+      const costCenter = String(row["مركز التكلفة"] || row["مركز تكلفة السيارة"] || row["costCenter"] || row["cost_center"] || "").trim();
+      const assetNumber = String(row["رقم الأصل"] || row["رقم اصل السيارة"] || row["assetNumber"] || row["asset_number"] || "").trim();
 
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row || row.length === 0) continue;
-
-      const plateNumber = String(row[0] ?? "").trim(); // العمود A (اللوحة)
-      if (!plateNumber) {
-        skipped++;
-        continue;
+      if (plateNumber) {
+        await pool.query(
+          `INSERT INTO vehicles (plate_number, brand, model, year, status, cost_center, asset_number)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [plateNumber, brand, model, year, status, costCenter, assetNumber]
+        );
+        count++;
       }
-
-      const assetNumber = String(row[1] ?? "").trim(); // العمود B (رقم الأصل)
-      const costCenter  = String(row[2] ?? "").trim(); // العمود C (مركز التكلفة)
-      const brand       = String(row[4] ?? "").trim(); // العمود E (الماركة)
-      const model       = String(row[5] ?? "").trim(); // العمود F (الطراز)
-      const yearStr     = String(row[6] ?? "").trim(); // العمود G (سنة الصنع)
-      const year        = parseInt(yearStr) || null;
-
-      await pool.query(
-        `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          randomUUID(),
-          plateNumber,
-          model,
-          brand,
-          year,
-          "active",
-          costCenter,
-          assetNumber,
-        ]
-      );
-      imported++;
     }
 
-    res.json({ imported, skipped, total: rows.length - 1 });
+    return res.json({ imported: count });
   } catch (error) {
-    console.error("Import Error:", error);
-    res.status(500).json({ error: "خطأ في استيراد الملف" });
+    console.error("Import error:", error);
+    return res.status(500).json({ error: "حدث خطأ أثناء معالجة الملف" });
+  }
+});
+
+// 3. مسح جميع البيانات
+router.delete("/", async (req: Request, res: Response) => {
+  try {
+    await pool.query("TRUNCATE TABLE vehicles RESTART IDENTITY CASCADE");
+    res.json({ message: "تم مسح جميع السيارات بنجاح" });
+  } catch (error) {
+    console.error("Delete all error:", error);
+    res.status(500).json({ error: "حدث خطأ أثناء المسح" });
   }
 });
 
