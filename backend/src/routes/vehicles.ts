@@ -35,16 +35,16 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 router.post("/", async (req: Request, res: Response) => {
   const body = req.body;
-  if (!body.plateNumber || !body.model || !body.costCenter || !body.assetNumber) {
+  if (!body.plateNumber || !body.model) {
     return res.status(400).json({
-      error: "رقم اللوحة والموديل ومركز التكلفة ورقم الأصل حقول مطلوبة",
+      error: "رقم اللوحة والموديل حقول مطلوبة",
     });
   }
   const id = randomUUID();
   const result = await pool.query(
     `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING ${SELECT_FIELDS}`,
-    [id, body.plateNumber, body.model, body.brand, body.year, body.status || "active", body.costCenter, body.assetNumber]
+    [id, body.plateNumber, body.model, body.brand, body.year, body.status || "active", body.costCenter || "", body.assetNumber || ""]
   );
   res.status(201).json(result.rows[0]);
 });
@@ -94,38 +94,42 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
 
   let imported = 0;
   let skipped = 0;
-  let debugged = false;
 
   for (const row of rows) {
-    const normalizedRow: any = {};
+    // 1. تنظيف مفاتيح الأعمدة من الرموز المخفية والمسافات الزائدة
+    const normalizedRow: { [key: string]: any } = {};
     for (const key in row) {
-      normalizedRow[key.trim()] = row[key];
+      const cleanKey = key.replace(/[\uFEFF\u200B]/g, "").trim();
+      normalizedRow[cleanKey] = row[key];
     }
 
-    if (!debugged) {
-      debugged = true;
-      const keyList = Object.keys(normalizedRow).map((k) => "[" + k + "](len=" + k.length + ")");
-      console.log("DEBUG_NORMALIZED_KEYS", JSON.stringify(keyList));
-      console.log("DEBUG_COST_CENTER_RAW", JSON.stringify(normalizedRow["مركز التكلفة"]));
-      console.log("DEBUG_ASSET_RAW", JSON.stringify(normalizedRow["رقم الاصل"]));
-      console.log("DEBUG_LOOKUP_KEY_LEN", "مركز التكلفة".length, "رقم الاصل".length);
-    }
+    // 2. دالة مرنة للبحث عن اسم العمود بناء على احتمالات متعددة
+    const getValueByKeywords = (keywords: string[]) => {
+      const foundKey = Object.keys(normalizedRow).find((k) =>
+        keywords.some((kw) => k.toLowerCase().includes(kw.toLowerCase()))
+      );
+      return foundKey ? String(normalizedRow[foundKey]).trim() : "";
+    };
 
-    const plateNumber = normalizedRow["رقم اللوحة"] || normalizedRow["plateNumber"];
+    const plateNumber = getValueByKeywords(["رقم اللوحة", "اللوحة", "plateNumber", "plate_number"]);
     if (!plateNumber) {
       skipped++;
       continue;
     }
-    const model = normalizedRow["الطراز"] || normalizedRow["الموديل"] || "";
-    const brand = normalizedRow["الماركة"] || "";
-    const year = parseInt(normalizedRow["سنة الصنع"]) || null;
-    const costCenter = normalizedRow["مركز التكلفة"] || "";
-    const assetNumber = normalizedRow["رقم الاصل"] || normalizedRow["رقم الأصل"] || "";
+
+    const model = getValueByKeywords(["الموديل", "الطراز", "model"]);
+    const brand = getValueByKeywords(["الماركة", "brand"]);
+    const yearRaw = getValueByKeywords(["السنة", "سنة الصنع", "year"]);
+    const year = parseInt(yearRaw) || null;
+
+    // بحث متقدم عن مركز التكلفة ورقم الأصل
+    const costCenter = getValueByKeywords(["مركز التكلفة", "تكلفة", "costCenter", "cost_center"]);
+    const assetNumber = getValueByKeywords(["رقم الأصل", "رقم الاصل", "الأصل", "الاصل", "assetNumber", "asset_number"]);
 
     await pool.query(
       `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [randomUUID(), String(plateNumber), model, brand, year, "active", costCenter, assetNumber]
+      [randomUUID(), plateNumber, model, brand, year, "active", costCenter, assetNumber]
     );
     imported++;
   }
