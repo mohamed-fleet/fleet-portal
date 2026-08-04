@@ -97,7 +97,7 @@ router.delete("/", async (req: Request, res: Response) => {
   res.status(204).send();
 });
 
-// Endpoint الاستيراد المخصص والمطابق تماماً لملفك
+// Endpoint الاستيراد المضمون بالاعتماد على أسماء العمود الفعلية لملفك
 router.post("/import", upload.single("file"), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -115,37 +115,27 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
     let imported = 0;
     let skipped = 0;
 
-    for (const row of rows) {
-      // دالة تنظيف ومطابقة متقدمة تتجاهل الهمزات والمسافات
-      const getVal = (possibleKeywords: string[]) => {
-        for (const key of Object.keys(row)) {
-          const cleanKey = key.trim().replace(/[أإآ]/g, "ا").toLowerCase();
-          for (const kw of possibleKeywords) {
-            const cleanKw = kw.replace(/[أإآ]/g, "ا").toLowerCase();
-            if (cleanKey.includes(cleanKw)) {
-              return String(row[key] ?? "").trim();
-            }
-          }
-        }
-        return "";
-      };
+    for (const rawRow of rows) {
+      // تنظيف كافة المفاتيح من المسافات المخفية والهمزات
+      const row: { [key: string]: any } = {};
+      for (const key of Object.keys(rawRow)) {
+        const cleanKey = key.trim().replace(/[أإآ]/g, "ا").toLowerCase();
+        row[cleanKey] = rawRow[key];
+      }
 
-      const plateNumber = getVal(["اللوحة", "لوحة", "plate"]);
+      // أخذ البيانات بناءً على المسميات الحقيقية بعد التنظيف
+      const plateNumber = String(row["رقم اللوحة"] || row["لوحة"] || "").trim();
       if (!plateNumber) {
         skipped++;
         continue;
       }
 
-      const model = getVal(["الطراز", "الموديل", "model"]);
-      const brand = getVal(["الماركة", "brand"]);
-      const yearStr = getVal(["سنة الصنع", "السنة", "year"]);
+      const assetNumber = String(row["رقم الاصل"] || row["الاصل"] || "").trim();
+      const costCenter = String(row["مركز التكلفة"] || row["التكلفة"] || "").trim();
+      const brand = String(row["الماركة"] || "").trim();
+      const model = String(row["الطراز"] || row["الموديل"] || "").trim();
+      const yearStr = String(row["سنة الصنع"] || row["السنة"] || "").trim();
       const year = parseInt(yearStr) || null;
-
-      // القراءة من عمود "رقم الاصل" الحقيقي
-      const assetNumber = getVal(["رقم الاصل", "الاصل", "asset"]);
-
-      // القراءة من عمود "مركز التكلفة" الحقيقي (مثل: N9012)
-      const costCenter = getVal(["مركز التكلفة", "مركز التكلفه", "التكلفة", "التكلفه", "cost"]);
 
       await pool.query(
         `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
