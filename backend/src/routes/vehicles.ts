@@ -7,15 +7,28 @@ import { pool } from "../data/db";
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+const SELECT_FIELDS = `
+  id,
+  plate_number AS "plateNumber",
+  model,
+  brand,
+  year,
+  status,
+  cost_center AS "costCenter",
+  asset_number AS "assetNumber",
+  created_at AS "createdAt",
+  updated_at AS "updatedAt"
+`;
+
 // GET all vehicles
 router.get("/", async (req: Request, res: Response) => {
-  const result = await pool.query("SELECT * FROM vehicles ORDER BY created_at DESC");
+  const result = await pool.query(`SELECT ${SELECT_FIELDS} FROM vehicles ORDER BY created_at DESC`);
   res.json(result.rows);
 });
 
 // GET single vehicle
 router.get("/:id", async (req: Request, res: Response) => {
-  const result = await pool.query("SELECT * FROM vehicles WHERE id = $1", [req.params.id]);
+  const result = await pool.query(`SELECT ${SELECT_FIELDS} FROM vehicles WHERE id = $1`, [req.params.id]);
   if (result.rows.length === 0) {
     return res.status(404).json({ error: "السيارة غير موجودة" });
   }
@@ -33,7 +46,7 @@ router.post("/", async (req: Request, res: Response) => {
   const id = randomUUID();
   const result = await pool.query(
     `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING ${SELECT_FIELDS}`,
     [id, body.plateNumber, body.model, body.brand, body.year, body.status || "active", body.costCenter, body.assetNumber]
   );
   res.status(201).json(result.rows[0]);
@@ -52,7 +65,7 @@ router.put("/:id", async (req: Request, res: Response) => {
       cost_center = COALESCE($6, cost_center),
       asset_number = COALESCE($7, asset_number),
       updated_at = now()
-     WHERE id = $8 RETURNING *`,
+     WHERE id = $8 RETURNING ${SELECT_FIELDS}`,
     [body.plateNumber, body.model, body.brand, body.year, body.status, body.costCenter, body.assetNumber, req.params.id]
   );
   if (result.rows.length === 0) {
