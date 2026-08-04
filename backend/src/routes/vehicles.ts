@@ -83,6 +83,12 @@ router.delete("/:id", async (req: Request, res: Response) => {
   res.status(204).send();
 });
 
+// DELETE all vehicles (used before re-importing)
+router.delete("/", async (req: Request, res: Response) => {
+  await pool.query("DELETE FROM vehicles");
+  res.status(204).send();
+});
+
 // POST import vehicles from Excel
 router.post("/import", upload.single("file"), async (req: Request, res: Response) => {
   if (!req.file) {
@@ -97,16 +103,21 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
   let skipped = 0;
 
   for (const row of rows) {
-    const plateNumber = row["رقم اللوحة"] || row["plateNumber"] || row["Plate Number"];
+    const normalizedRow: any = {};
+    for (const key in row) {
+      normalizedRow[key.trim()] = row[key];
+    }
+
+    const plateNumber = normalizedRow["رقم اللوحة"] || normalizedRow["plateNumber"] || normalizedRow["Plate Number"];
     if (!plateNumber) {
       skipped++;
       continue;
     }
-    const model = row["الطراز"] || row["الموديل"] || row["model"] || "";
-    const brand = row["الماركة"] || row["brand"] || "";
-    const year = parseInt(row["سنة الصنع"] || row["السنة"] || row["year"]) || null;
-    const costCenter = row["مركز التكلفة"] || row["costCenter"] || "";
-    const assetNumber = row["رقم الأصل"] || row["assetNumber"] || "";
+    const model = normalizedRow["الطراز"] || normalizedRow["الموديل"] || normalizedRow["model"] || "";
+    const brand = normalizedRow["الماركة"] || normalizedRow["brand"] || "";
+    const year = parseInt(normalizedRow["سنة الصنع"] || normalizedRow["السنة"] || normalizedRow["year"]) || null;
+    const costCenter = normalizedRow["مركز التكلفة"] || normalizedRow["costCenter"] || "";
+    const assetNumber = normalizedRow["رقم الاصل"] || normalizedRow["رقم الأصل"] || normalizedRow["assetNumber"] || "";
 
     await pool.query(
       `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
