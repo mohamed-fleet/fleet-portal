@@ -99,6 +99,9 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows: any[] = XLSX.utils.sheet_to_json(sheet);
 
+  console.log("DEBUG - First row keys:", rows.length > 0 ? Object.keys(rows[0]) : []);
+  console.log("DEBUG - First row values:", rows.length > 0 ? rows[0] : {});
+
   let imported = 0;
   let skipped = 0;
 
@@ -115,19 +118,4 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
     }
     const model = normalizedRow["الطراز"] || normalizedRow["الموديل"] || normalizedRow["model"] || "";
     const brand = normalizedRow["الماركة"] || normalizedRow["brand"] || "";
-    const year = parseInt(normalizedRow["سنة الصنع"] || normalizedRow["السنة"] || normalizedRow["year"]) || null;
-    const costCenter = normalizedRow["مركز التكلفة"] || normalizedRow["costCenter"] || "";
-    const assetNumber = normalizedRow["رقم الاصل"] || normalizedRow["رقم الأصل"] || normalizedRow["assetNumber"] || "";
-
-    await pool.query(
-      `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [randomUUID(), String(plateNumber), model, brand, year, "active", costCenter, assetNumber]
-    );
-    imported++;
-  }
-
-  res.json({ imported, skipped, total: rows.length });
-});
-
-export default router;
+    const
