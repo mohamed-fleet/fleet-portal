@@ -97,7 +97,7 @@ router.delete("/", async (req: Request, res: Response) => {
   res.status(204).send();
 });
 
-// Endpoint رفع Excel المُصحح والجوهري
+// Endpoint الاستيراد المحدث بالفحص المباشر
 router.post("/import", upload.single("file"), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -108,39 +108,46 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: any[] = XLSX.utils.sheet_to_json(sheet);
 
+    if (rows.length === 0) {
+      return res.status(400).json({ error: "الملف فارغ" });
+    }
+
+    // 🔍 طباعة أسماء الأعمدة والحقول في شاشة الـ Terminal لـ أول صف لمعرفة أسمائهم الحقيقية
+    console.log("=== RAW FIRST ROW FROM EXCEL ===");
+    console.log(rows[0]);
+    console.log("===============================");
+
     let imported = 0;
     let skipped = 0;
 
     for (const row of rows) {
-      // 1. تنظيف الـ Keys من أي رموز غريبة أو مسافات مخفية
-      const cleanRow: { [key: string]: any } = {};
-      for (const key in row) {
-        const cleanedKey = key.replace(/[\uFEFF\u200B]/g, "").trim().toLowerCase();
-        cleanRow[cleanedKey] = row[key];
-      }
-
-      // 2. دالة مرنة لجلب القيم بالبحث عن أي جزء من اسم العمود
-      const findValue = (keywords: string[]) => {
-        const matchedKey = Object.keys(cleanRow).find((k) =>
-          keywords.some((kw) => k.includes(kw.toLowerCase()))
-        );
-        return matchedKey ? String(cleanRow[matchedKey]).trim() : "";
+      // البحث في الخصائص بدون النظر لحجم الحروف أو المسافات
+      const getVal = (possibleNames: string[]) => {
+        for (const key of Object.keys(row)) {
+          const cleanKey = key.trim().toLowerCase();
+          for (const pName of possibleNames) {
+            if (cleanKey.includes(pName.toLowerCase())) {
+              return String(row[key] ?? "").trim();
+            }
+          }
+        }
+        return "";
       };
 
-      const plateNumber = findValue(["اللوحة", "plate"]);
+      const plateNumber = getVal(["اللوحة", "لوحة", "plate"]);
       if (!plateNumber) {
         skipped++;
         continue;
       }
 
-      const model = findValue(["الموديل", "الطراز", "model"]);
-      const brand = findValue(["الماركة", "brand"]);
-      const yearStr = findValue(["السنة", "الصنع", "year"]);
+      const model = getVal(["الموديل", "الطراز", "model"]);
+      const brand = getVal(["الماركة", "brand"]);
+      const yearStr = getVal(["السنة", "الصنع", "year"]);
       const year = parseInt(yearStr) || null;
 
-      // البحث المرن عن مركز التكلفة ورقم الأصل
-      const costCenter = findValue(["تكلفة", "تكلفه", "مركز", "cost"]);
-      const assetNumber = findValue(["أصل", "اصل", "الأصل", "الاصل", "asset"]);
+      // البحث عن مركز التكلفة ورقم الأصل بجميع الاحتمالات
+      const costCenter = getVal(["تكلفة", "تكلفه", "مركز", "cost", "cc", "قسم"]);
+      const assetNumber = getVal(["أصل", "اصل", "الأصل", "الاصل", "asset", "كود", "رقم"]);
 
       await pool.query(
         `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
@@ -153,7 +160,7 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
           year,
           "active",
           costCenter,
-          assetNumber
+          assetNumber,
         ]
       );
       imported++;
@@ -161,7 +168,7 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
 
     res.json({ imported, skipped, total: rows.length });
   } catch (error) {
-    console.error(error);
+    console.error("Import Error:", error);
     res.status(500).json({ error: "خطأ في استيراد الملف" });
   }
 });
