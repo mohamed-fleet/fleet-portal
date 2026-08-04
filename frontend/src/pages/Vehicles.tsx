@@ -48,22 +48,42 @@ export default function Vehicles() {
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (!confirm("هل أنت متأكد من مسح كل السيارات؟ هذا الإجراء لا يمكن التراجع عنه.")) return;
+    setMessage("");
+    try {
+      await fetch(`${API_URL}/api/vehicles`, { method: "DELETE" });
+      setMessage("تم مسح جميع السيارات");
+      loadVehicles();
+    } catch (err) {
+      setMessage("حدث خطأ أثناء المسح");
+    }
+  };
+
   if (loading) return <div className="p-4">جارِ التحميل...</div>;
 
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold">السيارات</h1>
-        <label className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700">
-          {uploading ? "جارِ الرفع..." : "رفع ملف Excel"}
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleFileUpload}
-            disabled={uploading}
-            className="hidden"
-          />
-        </label>
+        <div className="flex gap-2">
+          <button
+            onClick={handleDeleteAll}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+          >
+            مسح الكل
+          </button>
+          <label className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700">
+            {uploading ? "جارِ الرفع..." : "رفع ملف Excel"}
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
+        </div>
       </div>
       {message && (
         <div className="mb-4 p-3 bg-green-50 text-green-800 rounded border border-green-200">
