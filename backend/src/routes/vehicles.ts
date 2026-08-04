@@ -97,7 +97,7 @@ router.delete("/", async (req: Request, res: Response) => {
   res.status(204).send();
 });
 
-// Endpoint الاستيراد المحدث بالفحص المباشر
+// Endpoint الاستيراد المخصص والمطابق تماماً لملفك
 router.post("/import", upload.single("file"), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -112,21 +112,17 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
       return res.status(400).json({ error: "الملف فارغ" });
     }
 
-    // 🔍 طباعة أسماء الأعمدة والحقول في شاشة الـ Terminal لـ أول صف لمعرفة أسمائهم الحقيقية
-    console.log("=== RAW FIRST ROW FROM EXCEL ===");
-    console.log(rows[0]);
-    console.log("===============================");
-
     let imported = 0;
     let skipped = 0;
 
     for (const row of rows) {
-      // البحث في الخصائص بدون النظر لحجم الحروف أو المسافات
-      const getVal = (possibleNames: string[]) => {
+      // دالة تنظيف ومطابقة متقدمة تتجاهل الهمزات والمسافات
+      const getVal = (possibleKeywords: string[]) => {
         for (const key of Object.keys(row)) {
-          const cleanKey = key.trim().toLowerCase();
-          for (const pName of possibleNames) {
-            if (cleanKey.includes(pName.toLowerCase())) {
+          const cleanKey = key.trim().replace(/[أإآ]/g, "ا").toLowerCase();
+          for (const kw of possibleKeywords) {
+            const cleanKw = kw.replace(/[أإآ]/g, "ا").toLowerCase();
+            if (cleanKey.includes(cleanKw)) {
               return String(row[key] ?? "").trim();
             }
           }
@@ -140,14 +136,16 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
         continue;
       }
 
-      const model = getVal(["الموديل", "الطراز", "model"]);
+      const model = getVal(["الطراز", "الموديل", "model"]);
       const brand = getVal(["الماركة", "brand"]);
-      const yearStr = getVal(["السنة", "الصنع", "year"]);
+      const yearStr = getVal(["سنة الصنع", "السنة", "year"]);
       const year = parseInt(yearStr) || null;
 
-      // البحث عن مركز التكلفة ورقم الأصل بجميع الاحتمالات
-      const costCenter = getVal(["تكلفة", "تكلفه", "مركز", "cost", "cc", "قسم"]);
-      const assetNumber = getVal(["أصل", "اصل", "الأصل", "الاصل", "asset", "كود", "رقم"]);
+      // القراءة من عمود "رقم الاصل" الحقيقي
+      const assetNumber = getVal(["رقم الاصل", "الاصل", "asset"]);
+
+      // القراءة من عمود "مركز التكلفة" الحقيقي (مثل: N9012)
+      const costCenter = getVal(["مركز التكلفة", "مركز التكلفه", "التكلفة", "التكلفه", "cost"]);
 
       await pool.query(
         `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
