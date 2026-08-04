@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Vehicle } from "../types";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
 export default function Vehicles() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
@@ -14,7 +13,7 @@ export default function Vehicles() {
     fetch(`${API_URL}/api/vehicles`)
       .then((res) => res.json())
       .then((data) => {
-        setVehicles(data);
+        setVehicles(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -39,7 +38,7 @@ export default function Vehicles() {
         body: formData,
       });
       const data = await res.json();
-      setMessage(`تم استيراد ${data.imported} سيارة بنجاح (تم تجاهل ${data.skipped})`);
+      setMessage(`تم استيراد ${data.imported} سيارة بنجاح`);
       loadVehicles();
     } catch (err) {
       setMessage("حدث خطأ أثناء رفع الملف");
@@ -50,7 +49,7 @@ export default function Vehicles() {
   };
 
   const handleDeleteAll = async () => {
-    if (!confirm("هل أنت متأكد من مسح كل السيارات؟ هذا الإجراء لا يمكن التراجع عنه.")) return;
+    if (!confirm("هل أنت متأكد من مسح كل السيارات؟")) return;
     setMessage("");
     try {
       await fetch(`${API_URL}/api/vehicles`, { method: "DELETE" });
@@ -75,7 +74,7 @@ export default function Vehicles() {
             مسح الكل
           </button>
           <label className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700">
-            {uploading ? "جارِ الرفع..." : "رفع ملف Excel"}
+            {uploading ? "جارِ الرفع..." : "Excel رفع ملف"}
             <input
               type="file"
               accept=".xlsx,.xls"
@@ -107,13 +106,13 @@ export default function Vehicles() {
           <tbody className="divide-y divide-gray-200">
             {vehicles.map((v) => (
               <tr key={v.id}>
-                <td className="px-4 py-2">{v.plateNumber || "-"}</td>
+                <td className="px-4 py-2">{v.plateNumber || v.plate_number || "-"}</td>
                 <td className="px-4 py-2">{v.brand || "-"}</td>
                 <td className="px-4 py-2">{v.model || "-"}</td>
                 <td className="px-4 py-2">{v.year || "-"}</td>
                 <td className="px-4 py-2">{v.status || "-"}</td>
-                <td className="px-4 py-2">{v.costCenter || "-"}</td>
-                <td className="px-4 py-2">{v.assetNumber || "-"}</td>
+                <td className="px-4 py-2">{v.costCenter || v.cost_center || "-"}</td>
+                <td className="px-4 py-2">{v.assetNumber || v.asset_number || "-"}</td>
               </tr>
             ))}
           </tbody>
