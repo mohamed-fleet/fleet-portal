@@ -1,126 +1,126 @@
 import { Router, Request, Response } from "express";
+import { randomUUID } from "crypto";
 import multer from "multer";
 import * as XLSX from "xlsx";
-import { pool } from "../db";
+import { pool } from "../data/db";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// تأكيد وجود الأعمدة في قاعدة البيانات تلقائياً
-const ensureColumnsExist = async () => {
-  try {
-    await pool.query(`
-      ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS cost_center VARCHAR(255);
-      ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS asset_number VARCHAR(255);
-    `);
-  } catch (err) {
-    console.error("Column check error:", err);
-  }
-};
+const SELECT_FIELDS = `
+  id,
+  plate_number AS "plateNumber",
+  model,
+  brand,
+  year,
+  status,
+  cost_center AS "costCenter",
+  asset_number AS "assetNumber",
+  created_at AS "createdAt",
+  updated_at AS "updatedAt"
+`;
 
-// 1. جلب جميع السيارات
 router.get("/", async (req: Request, res: Response) => {
-  try {
-    await ensureColumnsExist();
-    const result = await pool.query(`
-      SELECT 
-        id,
-        plate_number AS "plateNumber",
-        brand,
-        model,
-        year,
-        status,
-        cost_center AS "costCenter",
-        asset_number AS "assetNumber"
-      FROM vehicles 
-      ORDER BY id DESC
-    `);
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Fetch vehicles error:", error);
-    res.status(500).json({ error: "حدث خطأ أثناء جلب البيانات" });
-  }
+  const result = await pool.query(`SELECT ${SELECT_FIELDS} FROM vehicles ORDER BY created_at DESC`);
+  res.json(result.rows);
 });
 
-// 2. استيراد ملف Excel وشمل كافة طرق القراءة (أسماء الأعمدة أو ترتيبها)
-router.post("/import", upload.single("file"), async (req: Request, res: Response) => {
-  try {
-    await ensureColumnsExist();
-
-    if (!req.file) {
-      return res.status(400).json({ error: "لم يتم اختيار ملف" });
-    }
-
-    const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-
-    // طريقة 1: قراءة الملف كـ Objects (حسب اسم العناوين)
-    const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
-    // طريقة 2: قراءة الملف كـ Array of Arrays (حسب الترتيب)
-    const arrayData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-    let count = 0;
-
-    for (let i = 0; i < jsonData.length; i++) {
-      const rowObj = jsonData[i] || {};
-      const rowArr = arrayData[i + 1] || []; // i+1 للتغاضي عن صف العناوين
-
-      // قراءة رقم اللوحة
-      const plateNumber = String(
-        rowObj["رقم اللوحة"] || rowObj["plateNumber"] || rowObj["plate_number"] || rowArr[0] || ""
-      ).trim();
-
-      // قراءة باقي البيانات
-      const brand = String(rowObj["الماركة"] || rowObj["brand"] || rowArr[1] || "").trim();
-      const model = String(rowObj["الموديل"] || rowObj["model"] || rowArr[2] || "").trim();
-      const year = parseInt(rowObj["السنة"] || rowObj["year"] || rowArr[3] || 0) || 2020;
-      const status = String(rowObj["الحالة"] || rowObj["status"] || rowArr[4] || "active").trim();
-
-      // مركز التكلفة (سواء باسم العمود أو الترتيب السادس index 5)
-      const costCenter = String(
-        rowObj["مركز التكلفة"] ||
-        rowObj["costCenter"] ||
-        rowObj["cost_center"] ||
-        rowArr[5] ||
-        ""
-      ).trim();
-
-      // رقم الأصل (سواء باسم العمود أو الترتيب السابع index 6)
-      const assetNumber = String(
-        rowObj["رقم الأصل"] ||
-        rowObj["assetNumber"] ||
-        rowObj["asset_number"] ||
-        rowArr[6] ||
-        ""
-      ).trim();
-
-      if (plateNumber && plateNumber !== "undefined" && plateNumber !== "رقم اللوحة") {
-        await pool.query(
-          `INSERT INTO vehicles (plate_number, brand, model, year, status, cost_center, asset_number)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [plateNumber, brand, model, year, status, costCenter, assetNumber]
-        );
-        count++;
-      }
-    }
-
-    return res.json({ imported: count });
-  } catch (error) {
-    console.error("Import error:", error);
-    return res.status(500).json({ error: "حدث خطأ أثناء معالجة الملف" });
+router.get("/:id", async (req: Request, res: Response) => {
+  const result = await pool.query(`SELECT ${SELECT_FIELDS} FROM vehicles WHERE id = $1`, [req.params.id]);
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: "السيارة غير موجودة" });
   }
+  res.json(result.rows[0]);
 });
 
-// 3. مسح جميع البيانات
+router.post("/", async (req: Request, res: Response) => {
+  const body = req.body;
+  if (!body.plateNumber || !body.model || !body.costCenter || !body.assetNumber) {
+    return res.status(400).json({
+      error: "رقم اللوحة والموديل ومركز التكلفة ورقم الأصل حقول مطلوبة",
+    });
+  }
+  const id = randomUUID();
+  const result = await pool.query(
+    `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING ${SELECT_FIELDS}`,
+    [id, body.plateNumber, body.model, body.brand, body.year, body.status || "active", body.costCenter, body.assetNumber]
+  );
+  res.status(201).json(result.rows[0]);
+});
+
+router.put("/:id", async (req: Request, res: Response) => {
+  const body = req.body;
+  const result = await pool.query(
+    `UPDATE vehicles SET
+      plate_number = COALESCE($1, plate_number),
+      model = COALESCE($2, model),
+      brand = COALESCE($3, brand),
+      year = COALESCE($4, year),
+      status = COALESCE($5, status),
+      cost_center = COALESCE($6, cost_center),
+      asset_number = COALESCE($7, asset_number),
+      updated_at = now()
+     WHERE id = $8 RETURNING ${SELECT_FIELDS}`,
+    [body.plateNumber, body.model, body.brand, body.year, body.status, body.costCenter, body.assetNumber, req.params.id]
+  );
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: "السيارة غير موجودة" });
+  }
+  res.json(result.rows[0]);
+});
+
+router.delete("/:id", async (req: Request, res: Response) => {
+  const result = await pool.query("DELETE FROM vehicles WHERE id = $1", [req.params.id]);
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: "السيارة غير موجودة" });
+  }
+  res.status(204).send();
+});
+
 router.delete("/", async (req: Request, res: Response) => {
-  try {
-    await pool.query("TRUNCATE TABLE vehicles RESTART IDENTITY CASCADE");
-    res.json({ message: "تم مسح جميع السيارات بنجاح" });
-  } catch (error) {
-    console.error("Delete error:", error);
-    res.status(500).json({ error: "حدث خطأ أثناء المسح" });
+  await pool.query("DELETE FROM vehicles");
+  res.status(204).send();
+});
+
+router.post("/import", upload.single("file"), async (req: Request, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "لم يتم رفع ملف" });
   }
+
+  const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+
+  let imported = 0;
+  let skipped = 0;
+
+  for (const row of rows) {
+    const normalizedRow: any = {};
+    for (const key in row) {
+      normalizedRow[String(key).trim()] = row[key];
+    }
+
+    const plateNumber = normalizedRow["رقم اللوحة"];
+    if (!plateNumber) {
+      skipped++;
+      continue;
+    }
+    const model = normalizedRow["الطراز"] || normalizedRow["الموديل"] || "";
+    const brand = normalizedRow["الماركة"] || "";
+    const year = parseInt(normalizedRow["سنة الصنع"]) || null;
+    const costCenter = normalizedRow["مركز التكلفة"] || "";
+    const assetNumber = normalizedRow["رقم الاصل"] || normalizedRow["رقم الأصل"] || "";
+
+    await pool.query(
+      `INSERT INTO vehicles (id, plate_number, model, brand, year, status, cost_center, asset_number)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [randomUUID(), String(plateNumber), model, brand, year, "active", costCenter, assetNumber]
+    );
+    imported++;
+  }
+
+  res.json({ imported, skipped, total: rows.length });
 });
 
 export default router;
