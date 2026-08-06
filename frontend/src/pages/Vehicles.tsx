@@ -38,10 +38,10 @@ export default function Vehicles() {
         body: formData,
       });
       const data = await res.json();
-      setMessage(`تم استيراد ${data.imported} سيارة بنجاح`);
+      setMessage(`Imported ${data.imported} vehicles successfully`);
       loadVehicles();
     } catch (err) {
-      setMessage("حدث خطأ أثناء رفع الملف");
+      setMessage("Error uploading file");
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -49,32 +49,32 @@ export default function Vehicles() {
   };
 
   const handleDeleteAll = async () => {
-    if (!confirm("هل أنت متأكد من مسح كل السيارات؟")) return;
+    if (!confirm("Are you sure you want to delete all vehicles?")) return;
     setMessage("");
     try {
       await fetch(`${API_URL}/api/vehicles`, { method: "DELETE" });
-      setMessage("تم مسح جميع السيارات");
+      setMessage("All vehicles deleted");
       loadVehicles();
     } catch (err) {
-      setMessage("حدث خطأ أثناء المسح");
+      setMessage("Error deleting vehicles");
     }
   };
 
-  if (loading) return <div className="p-4">جارِ التحميل...</div>;
+  if (loading) return <div className="p-4">Loading...</div>;
 
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold">السيارات</h1>
+        <h1 className="text-xl font-bold">Vehicles</h1>
         <div className="flex gap-2">
           <button
             onClick={handleDeleteAll}
             className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
           >
-            مسح الكل
+            Delete All
           </button>
           <label className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700">
-            {uploading ? "جارِ الرفع..." : "Excel رفع ملف"}
+            {uploading ? "Uploading..." : "Upload Excel File"}
             <input
               type="file"
               accept=".xlsx,.xls"
@@ -91,37 +91,3 @@ export default function Vehicles() {
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 border">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-right text-sm font-medium">رقم اللوحة</th>
-              <th className="px-4 py-2 text-right text-sm font-medium">الماركة</th>
-              <th className="px-4 py-2 text-right text-sm font-medium">الموديل</th>
-              <th className="px-4 py-2 text-right text-sm font-medium">السنة</th>
-              <th className="px-4 py-2 text-right text-sm font-medium">الحالة</th>
-              <th className="px-4 py-2 text-right text-sm font-medium">مركز التكلفة</th>
-              <th className="px-4 py-2 text-right text-sm font-medium">رقم الأصل</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {vehicles.map((v: any, index: number) => (
-              <tr key={v.id || index}>
-                <td className="px-4 py-2">{v.plateNumber || v.plate_number || v.plate || "-"}</td>
-                <td className="px-4 py-2">{v.brand || "-"}</td>
-                <td className="px-4 py-2">{v.model || "-"}</td>
-                <td className="px-4 py-2">{v.year || "-"}</td>
-                <td className="px-4 py-2">{v.status || "-"}</td>
-                <td className="px-4 py-2">
-                  {v.costCenter || v.cost_center || v.costCenterId || v["مركز التكلفة"] || "-"}
-                </td>
-                <td className="px-4 py-2">
-                  {v.assetNumber || v.asset_number || v.assetNo || v["رقم الأصل"] || "-"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
