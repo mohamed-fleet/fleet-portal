@@ -38,7 +38,7 @@ export default function Vehicles() {
         body: formData,
       });
       const data = await res.json();
-      setMessage(`Imported ${data.imported} vehicles successfully`);
+      setMessage("Imported " + data.imported + " vehicles successfully");
       loadVehicles();
     } catch (err) {
       setMessage("Error uploading file");
@@ -60,7 +60,9 @@ export default function Vehicles() {
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) {
+    return <div className="p-4">Loading...</div>;
+  }
 
   return (
     <div className="p-4">
@@ -85,9 +87,41 @@ export default function Vehicles() {
           </label>
         </div>
       </div>
+
       {message && (
         <div className="mb-4 p-3 bg-green-50 text-green-800 rounded border border-green-200">
           {message}
         </div>
       )}
+
       <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 border">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-2 text-right text-sm font-medium">Plate Number</th>
+              <th className="px-4 py-2 text-right text-sm font-medium">Brand</th>
+              <th className="px-4 py-2 text-right text-sm font-medium">Model</th>
+              <th className="px-4 py-2 text-right text-sm font-medium">Year</th>
+              <th className="px-4 py-2 text-right text-sm font-medium">Status</th>
+              <th className="px-4 py-2 text-right text-sm font-medium">Cost Center</th>
+              <th className="px-4 py-2 text-right text-sm font-medium">Asset Number</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {vehicles.map((v: any, index: number) => (
+              <tr key={v.id || index}>
+                <td className="px-4 py-2">{v.plateNumber || v.plate_number || v.plate || "-"}</td>
+                <td className="px-4 py-2">{v.brand || "-"}</td>
+                <td className="px-4 py-2">{v.model || "-"}</td>
+                <td className="px-4 py-2">{v.year || "-"}</td>
+                <td className="px-4 py-2">{v.status || "-"}</td>
+                <td className="px-4 py-2">{v.costCenter || v.cost_center || "-"}</td>
+                <td className="px-4 py-2">{v.assetNumber || v.asset_number || "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
